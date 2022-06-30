@@ -17,24 +17,26 @@ class DataBase:
 
     def get_search_title(self, title):
         cursor = self.create_cursor()
-        cursor.execute(f"""
+        sql = f"""
         SELECT title, country, release_year, listed_in, description
-        FROM {self.name}
-        WHERE title = '{title}'
+        FROM "{self.name}"
+        WHERE title = ?
         ORDER BY release_year DESC 
-        """)
+        """
+        cursor.execute(sql, (title, ))
         data = cursor.fetchone()
         return dict(zip(("title", "country", "release_year", "genre", "description"), data))
 
     def get_search_years(self, year1, year2):
         cursor = self.create_cursor()
-        cursor.execute(f"""
+        sql = f"""
         SELECT title, release_year
-        FROM {self.name}
-        WHERE release_year BETWEEN {year1} AND {year2}
+        FROM "{self.name}"
+        WHERE release_year BETWEEN ? AND ?
         ORDER BY release_year DESC 
         LIMIT 100
-        """)
+        """
+        cursor.execute(sql, (year1, year2))
         data = cursor.fetchall()
         return [dict(zip(("title", "release_year"), d)) for d in data]
 
@@ -44,36 +46,44 @@ class DataBase:
             "family": ("G", "PG", "PG-13"),
             "adult": ("R", "NC-17")
         }
+        rat = rating_dict.get(rating)
+
+        options = ["?" for i in range(len(rat))]
+        in_str = ", ".join(options)
+
         cursor = self.create_cursor()
-        cursor.execute(f"""
+        sql = f"""
             SELECT title, rating, description
             FROM {self.name}
-            WHERE rating in {rating_dict.get(rating)}
+            WHERE rating in ({in_str})
             ORDER BY release_year DESC 
-            """)
+            """
+        cursor.execute(sql, rat)
         data = cursor.fetchall()
         return [dict(zip(("title", "rating", "description"), d)) for d in data]
 
     def get_search_genre(self, genre):
         cursor = self.create_cursor()
-        cursor.execute(f"""
+        sql = f"""
         SELECT title, description
         FROM {self.name}
-        WHERE listed_in LIKE '%{genre}%'
+        WHERE listed_in LIKE ?
         ORDER BY release_year DESC 
-        """)
+        """
+        cursor.execute(sql, (f"%{genre}%", ))
         data = cursor.fetchall()
         return [dict(zip(("title", "description"), d)) for d in data]
 
     def get_search_cast(self, name1, name2):
         cursor = self.create_cursor()
-        cursor.execute(f"""
+        sql = f"""
         SELECT "cast"
         FROM {self.name}
-        WHERE "cast" LIKE '%{name1}%'
-        AND "cast" LIKE '%{name2}%'
+        WHERE "cast" LIKE ?
+        AND "cast" LIKE ?
         ORDER BY release_year DESC 
-        """)
+        """
+        cursor.execute(sql, (f'%{name1}%', f'%{name2}%'))
         data = cursor.fetchall()
         casting_names = []
         for d in data:
@@ -83,12 +93,13 @@ class DataBase:
 
     def get_title(self, type_title, year, genre):
         cursor = self.create_cursor()
-        cursor.execute(f"""
+        sql = f"""
         SELECT title, description
         FROM {self.name}
-        WHERE "type" LIKE '%{type_title}%'
-        AND release_year = {year}
-        AND listed_in LIKE '%{genre}%'
-        """)
+        WHERE "type" LIKE ?
+        AND release_year = ?
+        AND listed_in LIKE ?
+        """
+        cursor.execute(sql, (f'%{type_title}%', year, f'%{genre}%'))
         data = cursor.fetchall()
         return json.dumps([list(d) for d in data])
